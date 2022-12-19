@@ -11,11 +11,10 @@ from dns.aliyun import AliApi
 KEY = os.environ["KEY"]
 #CM:移动 CU:联通 CT:电信 AB:境外 DEF:默认
 #修改需要更改的dnspod域名和子域名
-DOMAINS = json.loads(os.environ["DOMAINS"])  #{"hostmonit.com": {"@": ["CM","CU","CT"], "shop": ["CM", "CU", "CT"], "stock": ["CM","CU","CT"]},"4096.me": {"@": ["CM","CU","CT"], "vv": ["CM","CU","CT"]}}
+DOMAINS = json.loads(os.environ["DOMAINS"])
 SECRETID = os.environ["SECRETID"]
 SECRETKEY = os.environ["SECRETKEY"]
 AFFECT_NUM = 2
-#DNS服务商 如果使用DNSPod改为1 如果使用阿里云解析改成2  如果使用华为云解析改成3
 DNS_SERVER = 2
 #如果使用阿里云解析 REGION出现错误再修改 默认不需要修改 https://help.aliyun.com/document_detail/198326.html
 REGION_ALI = 'cn-hongkong'
