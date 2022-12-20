@@ -15,6 +15,7 @@ DOMAINS = json.loads(os.environ["DOMAINS"])
 SECRETID = os.environ["SECRETID"]
 SECRETKEY = os.environ["SECRETKEY"]
 AFFECT_NUM = 2
+DNS_SERVER = 2
 #如果使用阿里云解析 REGION出现错误再修改 默认不需要修改 https://help.aliyun.com/document_detail/198326.html
 REGION_ALI = 'cn-hongkong'
 TTL = 1
@@ -64,7 +65,10 @@ def changeDNS(line, s_info, c_info, domain, sub_domain, cloud):
                 if cf_ip in str(s_info):
                     continue
                 ret = cloud.change_record(domain, info["recordId"], sub_domain, cf_ip, recordType, line, TTL)
-                print("CHANGE DNS SUCCESS: ----Time: " + str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())) + "----DOMAIN: " + domain + "----SUBDOMAIN: " + sub_domain + "----RECORDLINE: "+line+"----RECORDID: " + str(info["recordId"]) + "----VALUE: " + cf_ip )
+                if(DNS_SERVER != 1 or ret["code"] == 0):
+                    print("CHANGE DNS SUCCESS: ----Time: " + str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())) + "----DOMAIN: " + domain + "----SUBDOMAIN: " + sub_domain + "----RECORDLINE: "+line+"----RECORDID: " + str(info["recordId"]) + "----VALUE: " + cf_ip )
+                else:
+                    print("CHANGE DNS ERROR: ----Time: " + str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())) + "----DOMAIN: " + domain + "----SUBDOMAIN: " + sub_domain + "----RECORDLINE: "+line+"----RECORDID: " + str(info["recordId"]) + "----VALUE: " + cf_ip + "----MESSAGE: " + ret["message"] )
         elif create_num > 0:
             for i in range(create_num):
                 if len(c_info) == 0:
@@ -73,7 +77,10 @@ def changeDNS(line, s_info, c_info, domain, sub_domain, cloud):
                 if cf_ip in str(s_info):
                     continue
                 ret = cloud.create_record(domain, sub_domain, cf_ip, recordType, line, TTL)
-                print("CREATE DNS SUCCESS: ----Time: " + str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())) + "----DOMAIN: " + domain + "----SUBDOMAIN: " + sub_domain + "----RECORDLINE: "+line+"----VALUE: " + cf_ip )
+                if(DNS_SERVER != 1 or ret["code"] == 0):
+                    print("CREATE DNS SUCCESS: ----Time: " + str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())) + "----DOMAIN: " + domain + "----SUBDOMAIN: " + sub_domain + "----RECORDLINE: "+line+"----VALUE: " + cf_ip )
+                else:
+                    print("CREATE DNS ERROR: ----Time: " + str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())) + "----DOMAIN: " + domain + "----SUBDOMAIN: " + sub_domain + "----RECORDLINE: "+line+"----RECORDID: " + str(info["recordId"]) + "----VALUE: " + cf_ip + "----MESSAGE: " + ret["message"] )
         else:
             for info in s_info:
                 if create_num == 0 or len(c_info) == 0:
@@ -83,7 +90,10 @@ def changeDNS(line, s_info, c_info, domain, sub_domain, cloud):
                     create_num += 1
                     continue
                 ret = cloud.change_record(domain, info["recordId"], sub_domain, cf_ip, recordType, line, TTL)
-                print("CHANGE DNS SUCCESS: ----Time: " + str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())) + "----DOMAIN: " + domain + "----SUBDOMAIN: " + sub_domain + "----RECORDLINE: "+line+"----RECORDID: " + str(info["recordId"]) + "----VALUE: " + cf_ip )
+                if(DNS_SERVER != 1 or ret["code"] == 0):
+                    print("CHANGE DNS SUCCESS: ----Time: " + str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())) + "----DOMAIN: " + domain + "----SUBDOMAIN: " + sub_domain + "----RECORDLINE: "+line+"----RECORDID: " + str(info["recordId"]) + "----VALUE: " + cf_ip )
+                else:
+                    print("CHANGE DNS ERROR: ----Time: " + str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())) + "----DOMAIN: " + domain + "----SUBDOMAIN: " + sub_domain + "----RECORDLINE: "+line+"----RECORDID: " + str(info["recordId"]) + "----VALUE: " + cf_ip + "----MESSAGE: " + ret["message"] )
                 create_num += 1
     except Exception as e:
             print("CHANGE DNS ERROR: ----Time: " + str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())) + "----MESSAGE: " + str(traceback.print_exc()))
@@ -110,38 +120,51 @@ def main(cloud):
                     temp_cf_ctips = cf_ctips.copy()
                     temp_cf_abips = cf_ctips.copy()
                     temp_cf_defips = cf_ctips.copy()
+                    if DNS_SERVER == 1:
+                        ret = cloud.get_record(domain, 20, sub_domain, "CNAME")
+                        if ret["code"] == 0:
+                            for record in ret["data"]["records"]:
+                                if record["line"] == "移动" or record["line"] == "联通" or record["line"] == "电信":
+                                    retMsg = cloud.del_record(domain, record["id"])
+                                    if(retMsg["code"] == 0):
+                                        print("DELETE DNS SUCCESS: ----Time: "  + str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())) + "----DOMAIN: " + domain + "----SUBDOMAIN: " + sub_domain + "----RECORDLINE: "+record["line"] )
+                                    else:
+                                        print("DELETE DNS ERROR: ----Time: "  + str(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())) + "----DOMAIN: " + domain + "----SUBDOMAIN: " + sub_domain + "----RECORDLINE: "+record["line"] + "----MESSAGE: " + retMsg["message"] )
                     ret = cloud.get_record(domain, 100, sub_domain, recordType)
-                    cm_info = []
-                    cu_info = []
-                    ct_info = []
-                    ab_info = []
-                    def_info = []
-                    for record in ret["data"]["records"]:
-                        if record["line"] == "移动":
-                            info = {}
-                            info["recordId"] = record["id"]
-                            info["value"] = record["value"]
-                            cm_info.append(info)
-                        if record["line"] == "联通":
-                            info = {}
-                            info["recordId"] = record["id"]
-                            info["value"] = record["value"]
-                            cu_info.append(info)
-                        if record["line"] == "电信":
-                            info = {}
-                            info["recordId"] = record["id"]
-                            info["value"] = record["value"]
-                            ct_info.append(info)
-                        if record["line"] == "境外":
-                            info = {}
-                            info["recordId"] = record["id"]
-                            info["value"] = record["value"]
-                            ab_info.append(info)
-                        if record["line"] == "默认":
-                            info = {}
-                            info["recordId"] = record["id"]
-                            info["value"] = record["value"]
-                            def_info.append(info)
+                    if DNS_SERVER != 1 or ret["code"] == 0 :
+                        if DNS_SERVER == 1 and "Free" in ret["data"]["domain"]["grade"] and AFFECT_NUM > 2:
+                            AFFECT_NUM = 2
+                        cm_info = []
+                        cu_info = []
+                        ct_info = []
+                        ab_info = []
+                        def_info = []
+                        for record in ret["data"]["records"]:
+                            if record["line"] == "移动":
+                                info = {}
+                                info["recordId"] = record["id"]
+                                info["value"] = record["value"]
+                                cm_info.append(info)
+                            if record["line"] == "联通":
+                                info = {}
+                                info["recordId"] = record["id"]
+                                info["value"] = record["value"]
+                                cu_info.append(info)
+                            if record["line"] == "电信":
+                                info = {}
+                                info["recordId"] = record["id"]
+                                info["value"] = record["value"]
+                                ct_info.append(info)
+                            if record["line"] == "境外":
+                                info = {}
+                                info["recordId"] = record["id"]
+                                info["value"] = record["value"]
+                                ab_info.append(info)
+                            if record["line"] == "默认":
+                                info = {}
+                                info["recordId"] = record["id"]
+                                info["value"] = record["value"]
+                                def_info.append(info)
                         for line in lines:
                             if line == "CM":
                                 changeDNS("CM", cm_info, temp_cf_cmips, domain, sub_domain, cloud)
